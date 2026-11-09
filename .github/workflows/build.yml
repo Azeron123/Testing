@@ -1,7 +1,11 @@
+
 name: Build Android APK
 
 on:
   workflow_dispatch:
+
+permissions:
+  contents: read
 
 jobs:
   build:
@@ -19,6 +23,8 @@ jobs:
 
       - name: Set up Android SDK
         uses: android-actions/setup-android@v3
+        with:
+          log-accepted-android-sdk-licenses: false
 
       - name: Set up Gradle
         uses: gradle/actions/setup-gradle@v4
@@ -27,17 +33,32 @@ jobs:
 
       - name: Extract game project
         run: |
-          mkdir project
-          unzip -q *.zip -d project
-          find project -name settings.gradle.kts -print
+          mkdir -p project
+          ZIP_FILE=$(find . -maxdepth 1 -name '*.zip' -print -quit)
+          if [ -z "$ZIP_FILE" ]; then
+            echo "Game ZIP file not found"
+            exit 1
+          fi
+          unzip -q "$ZIP_FILE" -d project
 
       - name: Build APK
         run: |
-          cd "$(dirname "$(find project -name settings.gradle.kts -print -quit)")"
-          gradle assembleDebug
+          PROJECT_DIR=$(dirname "$(find project -name settings.gradle.kts -print -quit)")
+          if [ -z "$PROJECT_DIR" ] || [ "$PROJECT_DIR" = "." ]; then
+            echo "Gradle project not found"
+            exit 1
+          fi
+          cd "$PROJECT_DIR"
+          if [ -f gradlew ]; then
+            chmod +x gradlew
+            ./gradlew --no-daemon assembleDebug
+          else
+            gradle --no-daemon assembleDebug
+          fi
 
       - name: Upload APK
         uses: actions/upload-artifact@v4
         with:
           name: MyRPG-APK
           path: project/**/build/outputs/apk/debug/*.apk
+          if-no-files-found: error
