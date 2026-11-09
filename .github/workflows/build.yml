@@ -44,13 +44,21 @@ jobs:
           fi
           unzip -q "$ZIP_FILE" -d project
 
+      - name: Generate debug keystore
+        run: |
+          keytool -genkeypair -v \
+            -keystore project/debug.keystore \
+            -storepass android \
+            -alias androiddebugkey \
+            -keypass android \
+            -keyalg RSA \
+            -keysize 2048 \
+            -validity 10000 \
+            -dname "CN=Android Debug,O=Android,C=US"
+
       - name: Build APK
         run: |
           PROJECT_DIR=$(dirname "$(find project -name settings.gradle.kts -print -quit)")
-          if [ -z "$PROJECT_DIR" ] || [ "$PROJECT_DIR" = "." ]; then
-            echo "Gradle project not found"
-            exit 1
-          fi
           cd "$PROJECT_DIR"
           gradle --no-daemon assembleDebug
 
